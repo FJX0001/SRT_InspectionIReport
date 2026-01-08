@@ -636,6 +636,10 @@ function initApp() {
             clearContent();
         }
     });
+// 添加转换工具跳转按钮事件监听
+document.getElementById('gotoConverterBtn').addEventListener('click', function() {
+    window.open('https://fjx0001.github.io/JianxingSCT/', '_blank');
+});
 }
 
 // 当页面加载完成后初始化应用
