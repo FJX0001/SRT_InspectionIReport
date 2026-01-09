@@ -122,7 +122,81 @@
                 </div>
             </div>
         </div>
+
+        <-- 字幕对比功能 -->
+<div class="comparison-section" style="margin-top: 30px; background-color: white; border-radius: 12px; padding: 25px; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);">
+    <div class="section-title">
+        <i class="fas fa-code-compare"></i>
+        <h2>字幕对比功能</h2>
+    </div>
+    
+    <div class="comparison-container">
+        <div class="comparison-inputs">
+            <div class="comparison-column">
+                <h3><i class="fas fa-file-alt"></i> 字幕文件A</h3>
+                <div class="file-input-area comparison-drop-area" id="comparisonDropAreaA">
+                    <i class="fas fa-upload"></i>
+                    <p>拖放或点击选择第一个SRT文件</p>
+                    <input type="file" id="comparisonFileA" accept=".srt,.txt" hidden>
+                    <button class="upload-btn" id="comparisonBrowseA">选择文件A</button>
+                    <p class="file-info" id="comparisonInfoA"></p>
+                </div>
+                <textarea id="comparisonContentA" placeholder="或直接粘贴第一个SRT内容..." rows="6"></textarea>
+            </div>
+            
+            <div class="comparison-column">
+                <h3><i class="fas fa-file-alt"></i> 字幕文件B</h3>
+                <div class="file-input-area comparison-drop-area" id="comparisonDropAreaB">
+                    <i class="fas fa-upload"></i>
+                    <p>拖放或点击选择第二个SRT文件</p>
+                    <input type="file" id="comparisonFileB" accept=".srt,.txt" hidden>
+                    <button class="upload-btn" id="comparisonBrowseB">选择文件B</button>
+                    <p class="file-info" id="comparisonInfoB"></p>
+                </div>
+                <textarea id="comparisonContentB" placeholder="或直接粘贴第二个SRT内容..." rows="6"></textarea>
+            </div>
+        </div>
         
+        <div class="comparison-controls">
+            <button class="btn btn-primary" id="compareBtn">
+                <i class="fas fa-code-compare"></i> 开始对比
+            </button>
+            <button class="btn btn-secondary" id="clearComparisonBtn">
+                <i class="fas fa-trash"></i> 清空对比
+            </button>
+        </div>
+        
+        <div class="comparison-results hidden" id="comparisonResults">
+            <h3><i class="fas fa-chart-bar"></i> 对比结果</h3>
+            
+            <div class="comparison-summary">
+                <div class="stats">
+                    <div class="stat-item">
+                        <div class="stat-value" id="comparisonTotalA">0</div>
+                        <div class="stat-label">文件A字幕数</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="comparisonTotalB">0</div>
+                        <div class="stat-label">文件B字幕数</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value stat-warning" id="comparisonTimeErrors">0</div>
+                        <div class="stat-label">时间轴差异</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value stat-error" id="comparisonIndexErrors">0</div>
+                        <div class="stat-label">序号差异</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="comparison-details" id="comparisonDetails">
+                <!-- 对比详情将在这里显示 -->
+            </div>
+        </div>
+    </div>
+</div>
+
         <footer>
             <p>SRT字幕检查工具 &copy; 2026年1月8号由BiliBli Up主: 建星程序出bug了 指导创建的工具  | 本工具仅在前端运行，不会上传您的字幕文件到服务器</p>
             <p>支持标准SRT格式：序号、时间码、字幕文本、空行，时间格式 HH:MM:SS,mmm</p>

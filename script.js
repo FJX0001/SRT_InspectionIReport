@@ -636,6 +636,391 @@ function initApp() {
             clearContent();
         }
     });
+
+// ==================== 字幕对比功能 ====================
+
+// 对比功能DOM元素
+const comparisonFileA = document.getElementById('comparisonFileA');
+const comparisonFileB = document.getElementById('comparisonFileB');
+const comparisonBrowseA = document.getElementById('comparisonBrowseA');
+const comparisonBrowseB = document.getElementById('comparisonBrowseB');
+const comparisonDropAreaA = document.getElementById('comparisonDropAreaA');
+const comparisonDropAreaB = document.getElementById('comparisonDropAreaB');
+const comparisonContentA = document.getElementById('comparisonContentA');
+const comparisonContentB = document.getElementById('comparisonContentB');
+const compareBtn = document.getElementById('compareBtn');
+const clearComparisonBtn = document.getElementById('clearComparisonBtn');
+const comparisonResults = document.getElementById('comparisonResults');
+const comparisonTotalA = document.getElementById('comparisonTotalA');
+const comparisonTotalB = document.getElementById('comparisonTotalB');
+const comparisonTimeErrors = document.getElementById('comparisonTimeErrors');
+const comparisonIndexErrors = document.getElementById('comparisonIndexErrors');
+const comparisonDetails = document.getElementById('comparisonDetails');
+
+// 事件监听器
+comparisonBrowseA.addEventListener('click', () => comparisonFileA.click());
+comparisonBrowseB.addEventListener('click', () => comparisonFileB.click());
+
+comparisonFileA.addEventListener('change', (e) => handleComparisonFileSelect(e, 'A'));
+comparisonFileB.addEventListener('change', (e) => handleComparisonFileSelect(e, 'B'));
+
+comparisonDropAreaA.addEventListener('dragover', (e) => handleComparisonDragOver(e, 'A'));
+comparisonDropAreaA.addEventListener('drop', (e) => handleComparisonDrop(e, 'A'));
+
+comparisonDropAreaB.addEventListener('dragover', (e) => handleComparisonDragOver(e, 'B'));
+comparisonDropAreaB.addEventListener('drop', (e) => handleComparisonDrop(e, 'B'));
+
+compareBtn.addEventListener('click', compareSubtitles);
+clearComparisonBtn.addEventListener('click', clearComparison);
+
+// 处理对比文件选择
+function handleComparisonFileSelect(event, fileId) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const fileInfo = document.getElementById(`comparisonInfo${fileId}`);
+    fileInfo.textContent = `已选择: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`;
+    fileInfo.style.color = 'var(--primary-color)';
+    
+    readComparisonFile(file, fileId);
+}
+
+// 处理对比拖放
+function handleComparisonDragOver(event, areaId) {
+    event.preventDefault();
+    const dropArea = document.getElementById(`comparisonDropArea${areaId}`);
+    dropArea.style.borderColor = 'var(--primary-color)';
+    dropArea.style.backgroundColor = 'rgba(67, 97, 238, 0.05)';
+}
+
+function handleComparisonDrop(event, areaId) {
+    event.preventDefault();
+    const dropArea = document.getElementById(`comparisonDropArea${areaId}`);
+    dropArea.style.borderColor = 'var(--border-color)';
+    dropArea.style.backgroundColor = '';
+    
+    const file = event.dataTransfer.files[0];
+    if (!file) return;
+    
+    const fileInfo = document.getElementById(`comparisonInfo${areaId}`);
+    fileInfo.textContent = `已选择: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`;
+    fileInfo.style.color = 'var(--primary-color)';
+    
+    readComparisonFile(file, areaId);
+}
+
+// 读取对比文件
+function readComparisonFile(file, fileId) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        document.getElementById(`comparisonContent${fileId}`).value = e.target.result;
+    };
+    reader.readAsText(file);
+}
+
+// 清空对比内容
+function clearComparison() {
+    comparisonContentA.value = '';
+    comparisonContentB.value = '';
+    document.getElementById('comparisonInfoA').textContent = '';
+    document.getElementById('comparisonInfoB').textContent = '';
+    comparisonResults.classList.add('hidden');
+}
+
+// 对比两个字幕
+function compareSubtitles() {
+    const contentA = comparisonContentA.value.trim();
+    const contentB = comparisonContentB.value.trim();
+    
+    if (!contentA || !contentB) {
+        alert('请提供两个字幕文件进行对比');
+        return;
+    }
+    
+    // 解析两个字幕
+    const subtitlesA = parseSubtitlesForComparison(contentA);
+    const subtitlesB = parseSubtitlesForComparison(contentB);
+    
+    // 显示对比结果
+    comparisonResults.classList.remove('hidden');
+    displayComparisonResults(subtitlesA, subtitlesB);
+}
+
+// 专门用于对比的解析函数（独立于主解析逻辑）
+function parseSubtitlesForComparison(content) {
+    const subtitles = [];
+    const lines = content.split('\n');
+    let i = 0;
+    
+    while (i < lines.length) {
+        // 跳过空行
+        if (lines[i].trim() === '') {
+            i++;
+            continue;
+        }
+        
+        // 解析序号
+        let index;
+        try {
+            index = parseInt(lines[i].trim());
+        } catch (e) {
+            i++;
+            continue;
+        }
+        
+        i++;
+        
+        // 解析时间码
+        if (i >= lines.length) break;
+        
+        const timeMatch = lines[i].match(/(\d{2}):(\d{2}):(\d{2}),(\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2}),(\d{3})/);
+        if (!timeMatch) {
+            i++;
+            continue;
+        }
+        
+        const startTime = {
+            hours: parseInt(timeMatch[1]),
+            minutes: parseInt(timeMatch[2]),
+            seconds: parseInt(timeMatch[3]),
+            milliseconds: parseInt(timeMatch[4])
+        };
+        
+        const endTime = {
+            hours: parseInt(timeMatch[5]),
+            minutes: parseInt(timeMatch[6]),
+            seconds: parseInt(timeMatch[7]),
+            milliseconds: parseInt(timeMatch[8])
+        };
+        
+        // 计算时间（毫秒）
+        const startMs = timeToMs(startTime);
+        const endMs = timeToMs(endTime);
+        
+        i++;
+        
+        // 解析字幕文本
+        const textLines = [];
+        while (i < lines.length && lines[i].trim() !== '') {
+            textLines.push(lines[i]);
+            i++;
+        }
+        
+        // 添加到字幕数组
+        subtitles.push({
+            index: index,
+            originalIndex: index, // 保存原始序号
+            start: startTime,
+            end: endTime,
+            startMs: startMs,
+            endMs: endMs,
+            text: textLines.join('\n'),
+            lineCount: textLines.length
+        });
+        
+        i++; // 跳过空行
+    }
+    
+    return subtitles;
+}
+
+// 显示对比结果
+function displayComparisonResults(subtitlesA, subtitlesB) {
+    // 更新统计信息
+    comparisonTotalA.textContent = subtitlesA.length;
+    comparisonTotalB.textContent = subtitlesB.length;
+    
+    // 进行对比分析
+    const results = compareSubtitleLists(subtitlesA, subtitlesB);
+    
+    // 更新错误计数
+    comparisonTimeErrors.textContent = results.timeDifferences.length;
+    comparisonIndexErrors.textContent = results.indexDifferences.length;
+    
+    // 显示详细对比结果
+    comparisonDetails.innerHTML = '';
+    
+    if (results.timeDifferences.length === 0 && results.indexDifferences.length === 0) {
+        const successItem = document.createElement('div');
+        successItem.className = 'comparison-item success';
+        successItem.innerHTML = `
+            <div class="comparison-item-header">
+                <span class="comparison-index">对比结果</span>
+            </div>
+            <div class="comparison-details-content">
+                两个字幕文件的时间轴和序号完全匹配，没有差异。
+            </div>
+        `;
+        comparisonDetails.appendChild(successItem);
+        return;
+    }
+    
+    // 显示时间轴差异
+    results.timeDifferences.forEach(diff => {
+        const diffItem = document.createElement('div');
+        diffItem.className = 'comparison-item';
+        
+        const timeDiffMs = Math.abs(diff.timeA - diff.timeB);
+        const timeDiffFormatted = formatTimeDiff(timeDiffMs);
+        
+        diffItem.innerHTML = `
+            <div class="comparison-item-header">
+                <span class="comparison-index">字幕 ${diff.index}</span>
+                <span class="comparison-type time">时间差异</span>
+            </div>
+            <div class="comparison-details-content">
+                <div>${diff.description}</div>
+                <div class="comparison-time">
+                    <span>文件A: ${formatTimeFromMs(diff.timeA)}</span>
+                    <span>文件B: ${formatTimeFromMs(diff.timeB)}</span>
+                    <span class="comparison-difference">差异: ${timeDiffFormatted}</span>
+                </div>
+            </div>
+        `;
+        comparisonDetails.appendChild(diffItem);
+    });
+    
+    // 显示序号差异
+    results.indexDifferences.forEach(diff => {
+        const diffItem = document.createElement('div');
+        diffItem.className = 'comparison-item error';
+        
+        diffItem.innerHTML = `
+            <div class="comparison-item-header">
+                <span class="comparison-index">位置 ${diff.position}</span>
+                <span class="comparison-type index">序号差异</span>
+            </div>
+            <div class="comparison-details-content">
+                ${diff.description}
+            </div>
+        `;
+        comparisonDetails.appendChild(diffItem);
+    });
+}
+
+// 对比两个字幕列表
+function compareSubtitleLists(subtitlesA, subtitlesB) {
+    const timeDifferences = [];
+    const indexDifferences = [];
+    
+    // 检查序号连续性
+    if (subtitlesA.length !== subtitlesB.length) {
+        indexDifferences.push({
+            position: 0,
+            description: `字幕数量不匹配: 文件A有${subtitlesA.length}个字幕，文件B有${subtitlesB.length}个字幕`
+        });
+    }
+    
+    // 比较每个位置的字幕
+    const maxLength = Math.max(subtitlesA.length, subtitlesB.length);
+    
+    for (let i = 0; i < maxLength; i++) {
+        const subA = subtitlesA[i];
+        const subB = subtitlesB[i];
+        
+        // 检查字幕是否存在
+        if (!subA && subB) {
+            indexDifferences.push({
+                position: i + 1,
+                description: `文件B在第${i+1}位置有字幕(序号${subB.index})，但文件A没有对应字幕`
+            });
+            continue;
+        }
+        
+        if (subA && !subB) {
+            indexDifferences.push({
+                position: i + 1,
+                description: `文件A在第${i+1}位置有字幕(序号${subA.index})，但文件B没有对应字幕`
+            });
+            continue;
+        }
+        
+        if (!subA || !subB) continue;
+        
+        // 检查序号是否一致
+        if (subA.index !== subB.index) {
+            indexDifferences.push({
+                position: i + 1,
+                description: `序号不匹配: 文件A序号为${subA.index}，文件B序号为${subB.index}`
+            });
+        }
+        
+        // 检查时间轴是否一致（允许1毫秒的微小差异）
+        const timeThreshold = 1; // 1毫秒
+        const startDiff = Math.abs(subA.startMs - subB.startMs);
+        const endDiff = Math.abs(subA.endMs - subB.endMs);
+        
+        if (startDiff > timeThreshold) {
+            timeDifferences.push({
+                index: subA.index,
+                timeA: subA.startMs,
+                timeB: subB.startMs,
+                description: `开始时间不匹配: 字幕 ${subA.index}`
+            });
+        }
+        
+        if (endDiff > timeThreshold) {
+            timeDifferences.push({
+                index: subA.index,
+                timeA: subA.endMs,
+                timeB: subB.endMs,
+                description: `结束时间不匹配: 字幕 ${subA.index}`
+            });
+        }
+        
+        // 检查字幕持续时间是否一致
+        const durationA = subA.endMs - subA.startMs;
+        const durationB = subB.endMs - subB.startMs;
+        const durationDiff = Math.abs(durationA - durationB);
+        
+        if (durationDiff > timeThreshold && startDiff <= timeThreshold && endDiff <= timeThreshold) {
+            timeDifferences.push({
+                index: subA.index,
+                timeA: durationA,
+                timeB: durationB,
+                description: `持续时间不匹配: 字幕 ${subA.index} (文件A: ${durationA}ms, 文件B: ${durationB}ms)`
+            });
+        }
+    }
+    
+    return {
+        timeDifferences,
+        indexDifferences,
+        totalDifferences: timeDifferences.length + indexDifferences.length
+    };
+}
+
+// 格式化时间差异
+function formatTimeDiff(ms) {
+    if (ms < 1000) {
+        return `${ms}毫秒`;
+    } else if (ms < 60000) {
+        return `${(ms / 1000).toFixed(2)}秒`;
+    } else {
+        const minutes = Math.floor(ms / 60000);
+        const seconds = ((ms % 60000) / 1000).toFixed(2);
+        return `${minutes}分${seconds}秒`;
+    }
+}
+
+// 初始化对比功能
+function initComparison() {
+    // 添加键盘快捷键
+    document.addEventListener('keydown', (e) => {
+        // Ctrl + Shift + C 触发对比
+        if (e.ctrlKey && e.shiftKey && e.key === 'C') {
+            e.preventDefault();
+            compareSubtitles();
+        }
+    });
+}
+
+// 在页面加载完成后初始化对比功能
+document.addEventListener('DOMContentLoaded', function() {
+    initApp(); // 原有的初始化
+    initComparison(); // 对比功能的初始化
+});
+
 // 添加转换工具跳转按钮事件监听
 document.getElementById('gotoConverterBtn').addEventListener('click', function() {
     window.open('https://fjx0001.github.io/JianxingSCT/', '_blank');
